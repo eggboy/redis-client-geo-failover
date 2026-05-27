@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.14</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>io.jaylee.amr.demo</groupId>
+    <artifactId>amr-geo-failover</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>amr-geo-failover</name>
+    <description>Spring Boot 3.5 + Jedis 7 client-side geo-failover demo for Azure Managed Redis</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <spring-javaformat.version>0.0.47</spring-javaformat.version>
+        <jedis.version>7.5.0</jedis.version>
+        <redis-authx.version>0.1.1-beta2</redis-authx.version>
+        <resilience4j.version>1.7.1</resilience4j.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>redis.clients</groupId>
+            <artifactId>jedis</artifactId>
+            <version>${jedis.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>redis.clients.authentication</groupId>
+            <artifactId>redis-authx-entraid</artifactId>
+            <version>${redis-authx.version}</version>
+        </dependency>
+
+        <!--
+            Jedis 7's MultiDbClient uses Resilience4j (circuit breaker, retry, and the
+            Decorators DSL in MultiDbCommandExecutor) at runtime, but Jedis declares
+            every resilience4j module as <optional>true</optional> so they are not
+            pulled transitively. Without these the MultiDbClient bean either fails to
+            load (CallNotPermittedException) or every command throws NoClassDefFoundError
+            for io.github.resilience4j.decorators.Decorators.
+
+            resilience4j-all is the aggregator artifact that covers all the modules
+            Jedis touches; pinning the version that Jedis itself depends on avoids
+            ABI drift if a transitive consumer upgrades it.
+        -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-all</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>io.spring.javaformat</groupId>
+                <artifactId>spring-javaformat-maven-plugin</artifactId>
+                <version>${spring-javaformat.version}</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

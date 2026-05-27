@@ -1,0 +1,24 @@
+# Public-ish entry point so scenario scripts (running off-cluster) can hit
+# /status and /redis/active-endpoint.
+#
+# port=80 keeps URLs in the scenario output clean (http://<lb-ip>/status);
+# targetPort=8080 matches the Spring Boot listener.
+#
+# externalTrafficPolicy=Cluster is the AKS default and is fine here — we
+# don't care about source-IP preservation.
+apiVersion: v1
+kind: Service
+metadata:
+  name: amr-geo-failover
+  namespace: amr-demo
+  labels:
+    app.kubernetes.io/part-of: amr-geo-failover
+spec:
+  type: LoadBalancer
+  selector:
+    app: amr-geo-failover
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

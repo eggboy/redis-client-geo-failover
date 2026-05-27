@@ -1,0 +1,46 @@
+# Block egress from the amr-geo-failover pods to the PRIMARY AMR FQDN.
+#
+# Design:
+#  - `enableDefaultDeny.egress: false` keeps the pods in default-allow mode for
+#    every destination not explicitly denied here. Without this field, the
+#    presence of any `egress` block would flip the pods into default-deny and
+#    we'd need to enumerate every allowed destination (kube-dns,
+#    login.microsoftonline.com, the secondary AMR FQDN, the projected SA token
+#    endpoint, etc.). Surgical deny instead.
+#  - Uses toCIDR deny on the resolved IP of the primary FQDN with TCP/10000
+#    (AMR's Enterprise port). CIDR-based deny is required because Cilium's
+#    toFQDNs field only exists in `egress` (allow-list), not `egressDeny`.
+#    FQDN filtering works by intercepting DNS responses to learn IP→domain
+#    mappings and then allowing matched IPs — it is inherently an allow-list
+#    mechanism. See https://learn.microsoft.com/en-us/azure/aks/how-to-apply-fqdn-filtering-policies
+#
+# Templated by scripts/scenario-2-organic-failover.sh:
+#   ${AMR_PRIMARY_CIDR}  e.g. 48.206.149.46/32  (resolved from AMR_PRIMARY_HOST)
+#
+# Apply / remove during a failover test:
+#   kubectl apply  -n amr-demo -f deploy/k8s/policies/block-primary.yaml
+#   kubectl delete -n amr-demo -f deploy/k8s/policies/block-primary.yaml
+#
+# Requires AKS with --network-dataplane cilium --enable-acns.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: block-amr-primary
+  namespace: amr-demo
+  labels:
+    app.kubernetes.io/part-of: amr-geo-failover
+    amr-geo-failover/policy: block-primary
+spec:
+  endpointSelector:
+    matchLabels:
+      app: amr-geo-failover
+  enableDefaultDeny:
+    egress: false
+    ingress: false
+  egressDeny:
+    - toCIDR:
+        - "${AMR_PRIMARY_CIDR}"
+      toPorts:
+        - ports:
+            - port: "10000"
+              protocol: TCP

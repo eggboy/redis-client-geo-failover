@@ -1,0 +1,18 @@
+# Copy to `terraform.tfvars` and fill in real values.
+# `terraform.tfvars` is gitignored.
+
+name_prefix               = "amrgeo-demo"
+entra_principal_object_id = "00000000-0000-0000-0000-000000000000"
+aks_oidc_issuer_url       = "https://oidcissuer.example.com/00000000-0000-0000-0000-000000000000/"
+
+# Optional overrides:
+# primary_location          = "eastus"
+# secondary_location        = "westus2"
+# sku_name                  = "Balanced_B10"
+# geo_group_nickname        = "amr-geo-demo"
+# k8s_namespace             = "amr-demo"
+# k8s_service_account_name  = "amr-demo-sa"
+# tags = {
+#   environment = "demo"
+#   owner       = "you@example.com"
+# }

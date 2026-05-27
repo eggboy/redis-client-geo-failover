@@ -1,0 +1,34 @@
+# Mirror of block-primary.yaml, but blocks the SECONDARY AMR endpoint instead.
+#
+# Useful for two cases:
+#   1. Asymmetric testing — assert the demo behaves the same if the secondary
+#      goes down while the primary is active (no failover should occur, /status
+#      stays on primary).
+#   2. Reverse failover testing — apply this AFTER a failover so the demo has
+#      no healthy endpoint and you can observe the all-down behaviour without
+#      touching the Azure control plane.
+#
+# See block-primary.yaml for design notes (enableDefaultDeny, CIDR deny,
+# why toFQDNs cannot be used in egressDeny).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: block-amr-secondary
+  namespace: amr-demo
+  labels:
+    app.kubernetes.io/part-of: amr-geo-failover
+    amr-geo-failover/policy: block-secondary
+spec:
+  endpointSelector:
+    matchLabels:
+      app: amr-geo-failover
+  enableDefaultDeny:
+    egress: false
+    ingress: false
+  egressDeny:
+    - toCIDR:
+        - "${AMR_SECONDARY_CIDR}"
+      toPorts:
+        - ports:
+            - port: "10000"
+              protocol: TCP

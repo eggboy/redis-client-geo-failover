@@ -1,0 +1,10 @@
+# Namespace for the amr-geo-failover demo on AKS.
+#
+# Kept separate from kube-system so the CiliumNetworkPolicies in
+# deploy/k8s/policies/ have a tight blast radius.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: amr-demo
+  labels:
+    app.kubernetes.io/part-of: amr-geo-failover

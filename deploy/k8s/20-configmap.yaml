@@ -1,0 +1,21 @@
+# Non-secret runtime configuration for the app.
+#
+# AMR_PRIMARY_HOST / AMR_SECONDARY_HOST are templated by scripts/aks-deploy.sh
+# from `terraform output -raw spring_env`.
+#
+# SPRING_PROFILES_ACTIVE intentionally omits 'azure' so the app uses
+# DefaultAzureCredential, which already picks up Workload Identity via the
+# AZURE_* env vars injected by the AKS workload-identity webhook.
+# 'prod' disables the test-only pinned-admin endpoints (@Profile("!prod")).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: amr-demo-config
+  namespace: amr-demo
+  labels:
+    app.kubernetes.io/part-of: amr-geo-failover
+data:
+  AMR_PRIMARY_HOST: "${AMR_PRIMARY_HOST}"
+  AMR_SECONDARY_HOST: "${AMR_SECONDARY_HOST}"
+  SPRING_PROFILES_ACTIVE: "prod"
+  JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0"

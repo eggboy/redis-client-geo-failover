@@ -1,0 +1,109 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  application:
+    name: amr-geo-failover
+  threads:
+    virtual:
+      enabled: true                              # Spring Boot 3.2+: handle requests + @Async on virtual threads
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  main:
+    banner-mode: off
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    io.jaylee.amr.demo: INFO
+    redis.clients.jedis.mcf: INFO
+
+# ---------------------------------------------------------------------------
+# AMR geo-failover configuration. All durations are demo-tuned so failover
+# trips in seconds; the production-grade Jedis defaults are noted inline.
+# ---------------------------------------------------------------------------
+app:
+  redis:
+    health-strategy: ping                        # ping | lag-aware
+    initialization-policy: ONE_AVAILABLE         # ONE_AVAILABLE | MAJORITY_AVAILABLE | ALL_AVAILABLE
+    failback-supported: true
+    failback-check-interval: 10s                 # Jedis default 120s
+    grace-period: 5s                             # Jedis default 60s
+    delay-between-failover-attempts: 2s          # Jedis default 12s
+
+    circuit-breaker:
+      metrics-window-size: 5s                    # Jedis default 2s
+      minimum-number-of-failures: 3              # Jedis default 1000
+      failure-rate-threshold: 50.0               # Jedis default 10.0
+
+    # Per-connection timeouts applied to every JedisClientConfig (MultiDbClient routed
+    # connections + pinned per-endpoint connections). socket-timeout matches the
+    # health-check timeout so a cold TLS + Entra-AUTH handshake on the first command
+    # after startup or failback does not spuriously time out. Jedis defaults are 2000ms
+    # for both via Protocol.DEFAULT_TIMEOUT.
+    client:
+      connect-timeout: 2s
+      socket-timeout: 5s
+
+    health-check:
+      interval: 1s                               # Jedis default 1000ms
+      timeout: 5s                                # Demo-tuned: 1s is too short for the first probe across
+                                                 # AMR regions because the probe connection has to do
+                                                 # TLS + Entra-AUTH from cold. 5s leaves comfortable headroom.
+      num-probes: 1                              # Jedis default 3
+      delay-between-probes: 100ms                # Jedis default 100ms
+      policy: ALL_SUCCESS                        # ALL_SUCCESS | ANY_SUCCESS | MAJORITY_SUCCESS
+
+    # Only consulted when health-strategy=lag-aware.
+    # Requires the Redis Enterprise REST API (port 9443). AMR does NOT expose
+    # this publicly today, so this strategy will only work against bring-your-own
+    # Redis Enterprise clusters or once Microsoft adds the endpoint.
+    lag-aware:
+      extended-check-enabled: true
+      availability-lag-tolerance: 100ms
+
+    entra:
+      token-scope: https://redis.azure.com/.default
+      expiration-refresh-ratio: 0.7              # renew at ttl*0.7 (default in authx)
+      lower-refresh-bound: 3m                    # never wait less than 3m before expiry
+      token-request-timeout: 10s
+      # identity.* is only consumed when the 'azure' Spring profile is active
+      # (SPRING_PROFILES_ACTIVE=azure). Under the default profile,
+      # DefaultAzureCredential is used and this block is ignored. Under the
+      # 'azure' profile, omitting this block defaults to system-assigned MI.
+      # Override only when you need user-assigned MI:
+      # identity:
+      #   type: USER_ASSIGNED_CLIENT_ID            # or USER_ASSIGNED_OBJECT_ID / USER_ASSIGNED_RESOURCE_ID
+      #   id: 11111111-2222-3333-4444-555555555555
+
+    # Two AMR caches in the same geo-replication group.
+    # weight=1.0 is preferred (primary), weight=0.5 is the failover target.
+    # rest-api-uri is only used when health-strategy=lag-aware.
+    endpoints:
+      - name: primary
+        host: ${AMR_PRIMARY_HOST:replace-me-primary.eastus.redis.azure.net}
+        port: 10000
+        weight: 1.0
+        rest-api-uri: ${AMR_PRIMARY_REST_URI:}
+      - name: secondary
+        host: ${AMR_SECONDARY_HOST:replace-me-secondary.westus.redis.azure.net}
+        port: 10000
+        weight: 0.5
+        rest-api-uri: ${AMR_SECONDARY_REST_URI:}
+
+  workload:
+    background-writer-enabled: true
+    background-writer-interval: 1s
+    background-writer-key: demo:counter
+
+  session:
+    default-ttl: 30m
