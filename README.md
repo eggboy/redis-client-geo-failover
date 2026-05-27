@@ -1,4 +1,4 @@
-# Azure Managed Redis — Client-Side Geographic Failover Demo (Spring Boot 3.5 + Jedis 7)
+# Redis Geo-replication — Client-Side Geographic Failover Demo (Spring Boot 3.5 + Jedis 7)
 
 A minimal Spring Boot 3.5 application that demonstrates Jedis 7's
 [client-side geographic failover](https://redis.io/docs/latest/develop/clients/jedis/failover/)
@@ -7,7 +7,6 @@ A minimal Spring Boot 3.5 application that demonstrates Jedis 7's
 authenticated with Microsoft Entra ID.
 
 Reference: [Client-side geographic failover for Redis Active-Active](https://redis.io/blog/client-side-geographic-failover-for-redis-active-active/).
-[`CONTEXT.md`](CONTEXT.md) is the glossary used by the scripts and JSON reports.
 
 ## Table of contents
 
